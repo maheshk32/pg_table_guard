@@ -84,6 +84,12 @@ static ExecutorRun_hook_type    prev_ExecutorRun    = NULL;
 void _PG_init(void);
 void _PG_fini(void);
 
+/*
+ * ProcessUtility hook signature changed in PG 14:
+ *   PG 14+: added bool readOnlyTree parameter
+ *   PG 13:  no readOnlyTree parameter
+ */
+#if PG_VERSION_NUM >= 140000
 static void guard_ProcessUtility(PlannedStmt *pstmt,
                                   const char *queryString,
                                   bool readOnlyTree,
@@ -92,6 +98,15 @@ static void guard_ProcessUtility(PlannedStmt *pstmt,
                                   QueryEnvironment *queryEnv,
                                   DestReceiver *dest,
                                   QueryCompletion *qc);
+#else
+static void guard_ProcessUtility(PlannedStmt *pstmt,
+                                  const char *queryString,
+                                  ProcessUtilityContext context,
+                                  ParamListInfo params,
+                                  QueryEnvironment *queryEnv,
+                                  DestReceiver *dest,
+                                  QueryCompletion *qc);
+#endif
 
 static void guard_ExecutorRun(QueryDesc *queryDesc,
                                ScanDirection direction,
@@ -310,7 +325,11 @@ _PG_init(void)
     );
 
     /* Reserve the GUC prefix so unrecognised table_guard.* params are warned */
+#if PG_VERSION_NUM >= 150000
     MarkGUCPrefixReserved("table_guard");
+#else
+    EmitWarningsOnPlaceholders("table_guard");
+#endif
 
     /* Install hooks, saving any previously registered hooks so we can chain */
     prev_ProcessUtility = ProcessUtility_hook;
@@ -340,6 +359,7 @@ _PG_fini(void)
  * TRUNCATE relations list: each element is a RangeVar directly.
  * ---------------------------------------------------------------- */
 
+#if PG_VERSION_NUM >= 140000
 static void
 guard_ProcessUtility(PlannedStmt *pstmt,
                      const char *queryString,
@@ -349,6 +369,16 @@ guard_ProcessUtility(PlannedStmt *pstmt,
                      QueryEnvironment *queryEnv,
                      DestReceiver *dest,
                      QueryCompletion *qc)
+#else
+static void
+guard_ProcessUtility(PlannedStmt *pstmt,
+                     const char *queryString,
+                     ProcessUtilityContext context,
+                     ParamListInfo params,
+                     QueryEnvironment *queryEnv,
+                     DestReceiver *dest,
+                     QueryCompletion *qc)
+#endif
 {
     Node *parsetree = pstmt->utilityStmt;
 
@@ -402,12 +432,21 @@ guard_ProcessUtility(PlannedStmt *pstmt,
     }
 
     /* Pass to next hook or standard handler */
+#if PG_VERSION_NUM >= 140000
     if (prev_ProcessUtility)
         prev_ProcessUtility(pstmt, queryString, readOnlyTree,
                             context, params, queryEnv, dest, qc);
     else
         standard_ProcessUtility(pstmt, queryString, readOnlyTree,
-                                 context, params, queryEnv, dest, qc);
+                                context, params, queryEnv, dest, qc);
+#else
+    if (prev_ProcessUtility)
+        prev_ProcessUtility(pstmt, queryString,
+                            context, params, queryEnv, dest, qc);
+    else
+        standard_ProcessUtility(pstmt, queryString,
+                                context, params, queryEnv, dest, qc);
+#endif
 }
 
 /* ----------------------------------------------------------------

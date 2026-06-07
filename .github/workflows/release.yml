@@ -17,7 +17,7 @@ jobs:
 
     strategy:
       matrix:
-        pg_version: [17]   # add 16, 18 here when needed
+        pg_version: [13, 14, 15, 16, 17, 18]
 
     steps:
       - name: Checkout source
@@ -93,14 +93,12 @@ jobs:
       contents: write
 
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Get version from tag
         id: version
         run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
-
-      - name: Delete existing release if present
-        run: gh release delete ${{ github.ref_name }} --yes 2>/dev/null || true
-        env:
-          GH_TOKEN: ${{ github.token }}
 
       - name: Download all RPM artifacts
         uses: actions/download-artifact@v4
@@ -108,39 +106,78 @@ jobs:
           path: rpms/
           merge-multiple: true
 
-      - name: Create Release and upload RPMs
-        uses: softprops/action-gh-release@v2
-        with:
-          name: Release ${{ github.ref_name }}
-          body: |
-            ## pg_table_guard ${{ github.ref_name }}
+      - name: Delete existing release if present
+        run: gh release delete ${{ github.ref_name }} --yes --repo ${{ github.repository }} 2>/dev/null || true
+        env:
+          GH_TOKEN: ${{ github.token }}
 
-            PostgreSQL extension that prevents DROP TABLE, TRUNCATE, and DELETE without WHERE.
+      - name: Create release and upload RPMs
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}"
 
-            ### Installation
+          cat > /tmp/release_notes.md << EOF
+          ## pg_table_guard ${{ github.ref_name }}
 
-            **AlmaLinux 8 / RHEL 8 — PostgreSQL 17:**
-            ```bash
-            sudo dnf install https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/pg_table_guard_17-${{ steps.version.outputs.VERSION }}-1.el8.x86_64.rpm
-            ```
+          PostgreSQL extension that prevents DROP TABLE, TRUNCATE, and DELETE without WHERE.
 
-            Then add to `postgresql.conf`:
-            ```ini
-            shared_preload_libraries = 'table_guard'
-            ```
-            Restart PostgreSQL and optionally run `CREATE EXTENSION table_guard;` in your databases.
+          ### Installation
 
-            ### Scope configuration
-            ```sql
-            -- Protect only databases where extension is installed:
-            ALTER DATABASE mydb SET table_guard.scope = 'database';
+          Pick the command for your PostgreSQL version:
 
-            -- Protect specific tables only:
-            ALTER DATABASE mydb SET table_guard.scope = 'table';
-            ALTER DATABASE mydb SET table_guard.protected_tables = 'mydb.public.orders, mydb.audit.*';
+          **PostgreSQL 13:**
+          \`\`\`bash
+          sudo dnf install ${BASE_URL}/pg_table_guard_13-${VERSION}-1.el8.x86_64.rpm
+          \`\`\`
 
-            SELECT pg_reload_conf();
-            ```
-          files: rpms/*.rpm
-          draft: false
-          prerelease: false
+          **PostgreSQL 14:**
+          \`\`\`bash
+          sudo dnf install ${BASE_URL}/pg_table_guard_14-${VERSION}-1.el8.x86_64.rpm
+          \`\`\`
+
+          **PostgreSQL 15:**
+          \`\`\`bash
+          sudo dnf install ${BASE_URL}/pg_table_guard_15-${VERSION}-1.el8.x86_64.rpm
+          \`\`\`
+
+          **PostgreSQL 16:**
+          \`\`\`bash
+          sudo dnf install ${BASE_URL}/pg_table_guard_16-${VERSION}-1.el8.x86_64.rpm
+          \`\`\`
+
+          **PostgreSQL 17:**
+          \`\`\`bash
+          sudo dnf install ${BASE_URL}/pg_table_guard_17-${VERSION}-1.el8.x86_64.rpm
+          \`\`\`
+
+          **PostgreSQL 18:**
+          \`\`\`bash
+          sudo dnf install ${BASE_URL}/pg_table_guard_18-${VERSION}-1.el8.x86_64.rpm
+          \`\`\`
+
+          Then add to \`postgresql.conf\`:
+          \`\`\`ini
+          shared_preload_libraries = 'table_guard'
+          \`\`\`
+          Restart PostgreSQL and optionally run \`CREATE EXTENSION table_guard;\` in each database.
+
+          ### Scope configuration
+          \`\`\`sql
+          -- Protect only databases where extension is installed:
+          ALTER DATABASE mydb SET table_guard.scope = 'database';
+
+          -- Protect specific tables only:
+          ALTER DATABASE mydb SET table_guard.scope = 'table';
+          ALTER DATABASE mydb SET table_guard.protected_tables = 'mydb.public.orders, mydb.audit.*';
+
+          SELECT pg_reload_conf();
+          \`\`\`
+          EOF
+
+          gh release create ${{ github.ref_name }} \
+            --repo ${{ github.repository }} \
+            --title "Release ${{ github.ref_name }}" \
+            --notes-file /tmp/release_notes.md \
+            rpms/*.rpm
+        env:
+          GH_TOKEN: ${{ github.token }}
