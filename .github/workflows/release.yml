@@ -50,6 +50,7 @@ jobs:
           SNAME=pg_table_guard
           VERSION=${{ steps.version.outputs.VERSION }}
           mkdir -p /root/rpmbuild/SOURCES/${SNAME}-${VERSION}
+          mkdir -p /root/rpmbuild/SPECS
           cp table_guard.c table_guard.control "table_guard--1.0.sql" Makefile \
             /root/rpmbuild/SOURCES/${SNAME}-${VERSION}/
           tar -czf /root/rpmbuild/SOURCES/${SNAME}-${VERSION}.tar.gz \
@@ -58,10 +59,13 @@ jobs:
       - name: Prepare spec file
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
+          mkdir -p /root/rpmbuild/SPECS
           sed \
             -e "s/^%global pgmajorversion.*/%global pgmajorversion ${{ matrix.pg_version }}/" \
             -e "s/^Version:.*/Version:        ${VERSION}/" \
             pg_table_guard.spec > /root/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
+          echo "--- Spec file written ---"
+          cat /root/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
 
       - name: Build RPM
         run: |
