@@ -8,6 +8,12 @@ A PostgreSQL extension that prevents accidental data loss by blocking:
 
 Protection is configurable — guard all databases globally, a single database, or specific tables only.
 
+| | |
+|---|---|
+| **PostgreSQL versions** | 14, 15, 16, 17, 18 |
+| **OS** | AlmaLinux 8 / RHEL 8 |
+| **Hook compatibility** | PG 14–18 (version-guarded C code) |
+
 ---
 
 ## Requirements
@@ -23,35 +29,23 @@ Protection is configurable — guard all databases globally, a single database, 
 
 Pick the command for your PostgreSQL version:
 
-**PostgreSQL 14:**
+Replace `{PG_VERSION}` with your PostgreSQL major version (14, 15, 16, 17, or 18):
+
 ```bash
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_14-1.0-1.el8.x86_64.rpm
+sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_{PG_VERSION}-1.1-1.el8.x86_64.rpm
 ```
 
-**PostgreSQL 15:**
-```bash
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_15-1.0-1.el8.x86_64.rpm
-```
-
-**PostgreSQL 16:**
-```bash
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_16-1.0-1.el8.x86_64.rpm
-```
-
-**PostgreSQL 17:**
-```bash
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_17-1.0-1.el8.x86_64.rpm
-```
-
-**PostgreSQL 18:**
-```bash
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_18-1.0-1.el8.x86_64.rpm
-```
-
-Or download the RPM first, then install locally:
+Examples:
 
 ```bash
-sudo dnf install ./pg_table_guard_17-1.0-1.el8.x86_64.rpm
+# PostgreSQL 14
+sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_14-1.1-1.el8.x86_64.rpm
+
+# PostgreSQL 17
+sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_17-1.1-1.el8.x86_64.rpm
+
+# PostgreSQL 18
+sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_18-1.1-1.el8.x86_64.rpm
 ```
 
 ### 2. Enable the extension
@@ -62,11 +56,12 @@ Add `table_guard` to `shared_preload_libraries` in `postgresql.conf`:
 shared_preload_libraries = 'table_guard'
 ```
 
-> **Note:** `postgresql.conf` is typically at `/var/lib/pgsql/17/data/postgresql.conf`
+> **Note:** `postgresql.conf` is typically at `/var/lib/pgsql/{PG_VERSION}/data/postgresql.conf`
 
 ### 3. Restart PostgreSQL
 
 ```bash
+# Replace 17 with your PostgreSQL version
 sudo systemctl restart postgresql-17
 ```
 
@@ -181,7 +176,7 @@ SELECT table_guard_help();
 ## Uninstall
 
 ```bash
-# Replace 17 with your PostgreSQL version (16, 17, or 18)
+# Replace 17 with your PostgreSQL version (14, 15, 16, 17, or 18)
 sudo dnf remove pg_table_guard_17
 ```
 
