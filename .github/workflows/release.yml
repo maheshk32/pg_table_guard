@@ -5,6 +5,9 @@ on:
     tags:
       - 'v*'   # triggers on v1.0, v1.1, v2.0, etc.
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build:
     name: Build RPM (PG ${{ matrix.pg_version }})
@@ -27,9 +30,11 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          dnf install -y epel-release
           dnf install -y \
             gcc make redhat-rpm-config \
             rpm-build rpmdevtools \
+            perl-IPC-Run \
             postgresql${{ matrix.pg_version }}-devel
 
       - name: Set up rpmbuild tree
