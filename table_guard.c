@@ -108,10 +108,21 @@ static void guard_ProcessUtility(PlannedStmt *pstmt,
                                   QueryCompletion *qc);
 #endif
 
+/*
+ * ExecutorRun hook signature changed in PG 18:
+ *   PG 18+: removed execute_once parameter
+ *   PG 14-17: has execute_once parameter
+ */
+#if PG_VERSION_NUM >= 180000
+static void guard_ExecutorRun(QueryDesc *queryDesc,
+                               ScanDirection direction,
+                               uint64 count);
+#else
 static void guard_ExecutorRun(QueryDesc *queryDesc,
                                ScanDirection direction,
                                uint64 count,
                                bool execute_once);
+#endif
 
 /* ----------------------------------------------------------------
  * Helper: get current database name via syscache (no missing header needed)
@@ -457,11 +468,18 @@ guard_ProcessUtility(PlannedStmt *pstmt,
  * planner populates qual with the filter conditions.
  * ---------------------------------------------------------------- */
 
+#if PG_VERSION_NUM >= 180000
+static void
+guard_ExecutorRun(QueryDesc *queryDesc,
+                  ScanDirection direction,
+                  uint64 count)
+#else
 static void
 guard_ExecutorRun(QueryDesc *queryDesc,
                   ScanDirection direction,
                   uint64 count,
                   bool execute_once)
+#endif
 {
     if (tg_db_active() &&
         queryDesc->plannedstmt->commandType == CMD_DELETE)
@@ -498,8 +516,15 @@ guard_ExecutorRun(QueryDesc *queryDesc,
         }
     }
 
+#if PG_VERSION_NUM >= 180000
+    if (prev_ExecutorRun)
+        prev_ExecutorRun(queryDesc, direction, count);
+    else
+        standard_ExecutorRun(queryDesc, direction, count);
+#else
     if (prev_ExecutorRun)
         prev_ExecutorRun(queryDesc, direction, count, execute_once);
     else
         standard_ExecutorRun(queryDesc, direction, count, execute_once);
+#endif
 }
