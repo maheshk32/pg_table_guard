@@ -31,6 +31,7 @@ jobs:
       - name: Install build dependencies
         run: |
           dnf install -y epel-release
+          /usr/bin/crb enable
           dnf install -y \
             gcc make redhat-rpm-config \
             rpm-build rpmdevtools \
