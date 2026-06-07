@@ -71,11 +71,18 @@ jobs:
         run: |
           rpmbuild -ba $HOME/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
 
+      - name: Copy RPM to workspace
+        run: |
+          mkdir -p dist
+          cp $HOME/rpmbuild/RPMS/x86_64/pg_table_guard_${{ matrix.pg_version }}-*.x86_64.rpm dist/
+          echo "RPM files in dist/:"
+          ls -lh dist/
+
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
         with:
           name: rpm-pg${{ matrix.pg_version }}
-          path: $HOME/rpmbuild/RPMS/x86_64/pg_table_guard_${{ matrix.pg_version }}-*.x86_64.rpm
+          path: dist/*.rpm
 
   release:
     name: Create GitHub Release
