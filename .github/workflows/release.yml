@@ -17,7 +17,7 @@ jobs:
 
     strategy:
       matrix:
-        pg_version: [13, 14, 15, 16, 17, 18]
+        pg_version: [14, 15, 16, 17, 18]
 
     steps:
       - name: Checkout source
@@ -124,11 +124,6 @@ jobs:
           ### Installation
 
           Pick the command for your PostgreSQL version:
-
-          **PostgreSQL 13:**
-          \`\`\`bash
-          sudo dnf install ${BASE_URL}/pg_table_guard_13-${VERSION}-1.el8.x86_64.rpm
-          \`\`\`
 
           **PostgreSQL 14:**
           \`\`\`bash

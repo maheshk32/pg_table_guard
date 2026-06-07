@@ -13,7 +13,7 @@ Protection is configurable — guard all databases globally, a single database, 
 ## Requirements
 
 - AlmaLinux 8 / RHEL 8 (or compatible)
-- PostgreSQL 13, 14, 15, 16, 17, or 18
+- PostgreSQL 14, 15, 16, 17, or 18
 
 ---
 
@@ -22,11 +22,6 @@ Protection is configurable — guard all databases globally, a single database, 
 ### 1. Install the RPM
 
 Pick the command for your PostgreSQL version:
-
-**PostgreSQL 13:**
-```bash
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_13-1.0-1.el8.x86_64.rpm
-```
 
 **PostgreSQL 14:**
 ```bash
