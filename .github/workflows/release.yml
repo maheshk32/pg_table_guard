@@ -86,6 +86,10 @@ jobs:
       contents: write
 
     steps:
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
       - name: Download all RPM artifacts
         uses: actions/download-artifact@v4
         with:
@@ -105,7 +109,7 @@ jobs:
 
             **AlmaLinux 8 / RHEL 8 — PostgreSQL 17:**
             ```bash
-            sudo dnf install https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/pg_table_guard_17-${{ github.ref_name }}-1.el8.x86_64.rpm
+            sudo dnf install https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/pg_table_guard_17-${{ steps.version.outputs.VERSION }}-1.el8.x86_64.rpm
             ```
 
             Then add to `postgresql.conf`:
