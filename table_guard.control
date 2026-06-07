@@ -1,0 +1,6 @@
+# table_guard extension
+comment = 'Prevents DROP TABLE, TRUNCATE, and whole-table DELETE'
+default_version = '1.0'
+module_pathname = '$libdir/table_guard'
+relocatable = true
+superuser = true
