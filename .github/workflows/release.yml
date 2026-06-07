@@ -49,33 +49,33 @@ jobs:
         run: |
           SNAME=pg_table_guard
           VERSION=${{ steps.version.outputs.VERSION }}
-          mkdir -p /root/rpmbuild/SOURCES/${SNAME}-${VERSION}
-          mkdir -p /root/rpmbuild/SPECS
+          mkdir -p $HOME/rpmbuild/SOURCES/${SNAME}-${VERSION}
+          mkdir -p $HOME/rpmbuild/SPECS
           cp table_guard.c table_guard.control "table_guard--1.0.sql" Makefile \
-            /root/rpmbuild/SOURCES/${SNAME}-${VERSION}/
-          tar -czf /root/rpmbuild/SOURCES/${SNAME}-${VERSION}.tar.gz \
-            -C /root/rpmbuild/SOURCES ${SNAME}-${VERSION}
+            $HOME/rpmbuild/SOURCES/${SNAME}-${VERSION}/
+          tar -czf $HOME/rpmbuild/SOURCES/${SNAME}-${VERSION}.tar.gz \
+            -C $HOME/rpmbuild/SOURCES ${SNAME}-${VERSION}
 
       - name: Prepare spec file
         run: |
           VERSION=${{ steps.version.outputs.VERSION }}
-          mkdir -p /root/rpmbuild/SPECS
+          mkdir -p $HOME/rpmbuild/SPECS
           sed \
             -e "s/^%global pgmajorversion.*/%global pgmajorversion ${{ matrix.pg_version }}/" \
             -e "s/^Version:.*/Version:        ${VERSION}/" \
-            pg_table_guard.spec > /root/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
+            pg_table_guard.spec > $HOME/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
           echo "--- Spec file written ---"
-          cat /root/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
+          cat $HOME/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
 
       - name: Build RPM
         run: |
-          rpmbuild -ba /root/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
+          rpmbuild -ba $HOME/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
 
       - name: Upload RPM artifact
         uses: actions/upload-artifact@v4
         with:
           name: rpm-pg${{ matrix.pg_version }}
-          path: /root/rpmbuild/RPMS/x86_64/pg_table_guard_${{ matrix.pg_version }}-*.x86_64.rpm
+          path: $HOME/rpmbuild/RPMS/x86_64/pg_table_guard_${{ matrix.pg_version }}-*.x86_64.rpm
 
   release:
     name: Create GitHub Release
