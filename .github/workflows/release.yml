@@ -1,0 +1,120 @@
+name: Build and Release RPM
+
+on:
+  push:
+    tags:
+      - 'v*'   # triggers on v1.0, v1.1, v2.0, etc.
+
+jobs:
+  build:
+    name: Build RPM (PG ${{ matrix.pg_version }})
+    runs-on: ubuntu-latest
+    container:
+      image: almalinux:8
+
+    strategy:
+      matrix:
+        pg_version: [17]   # add 16, 18 here when needed
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Install PGDG repo
+        run: |
+          dnf install -y https://download.postgresql.org/pub/repos/yum/reporpms/EL-8-x86_64/pgdg-redhat-repo-latest.noarch.rpm
+          dnf module disable postgresql -y
+
+      - name: Install build dependencies
+        run: |
+          dnf install -y \
+            gcc make redhat-rpm-config \
+            rpm-build rpmdevtools \
+            postgresql${{ matrix.pg_version }}-devel
+
+      - name: Set up rpmbuild tree
+        run: rpmdev-setuptree
+
+      - name: Get version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF_NAME#v}" >> $GITHUB_OUTPUT
+
+      - name: Create source tarball
+        run: |
+          SNAME=pg_table_guard
+          VERSION=${{ steps.version.outputs.VERSION }}
+          mkdir -p /root/rpmbuild/SOURCES/${SNAME}-${VERSION}
+          cp table_guard.c table_guard.control "table_guard--1.0.sql" Makefile \
+            /root/rpmbuild/SOURCES/${SNAME}-${VERSION}/
+          tar -czf /root/rpmbuild/SOURCES/${SNAME}-${VERSION}.tar.gz \
+            -C /root/rpmbuild/SOURCES ${SNAME}-${VERSION}
+
+      - name: Prepare spec file
+        run: |
+          VERSION=${{ steps.version.outputs.VERSION }}
+          sed \
+            -e "s/^%global pgmajorversion.*/%global pgmajorversion ${{ matrix.pg_version }}/" \
+            -e "s/^Version:.*/Version:        ${VERSION}/" \
+            pg_table_guard.spec > /root/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
+
+      - name: Build RPM
+        run: |
+          rpmbuild -ba /root/rpmbuild/SPECS/pg_table_guard_${{ matrix.pg_version }}.spec
+
+      - name: Upload RPM artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-pg${{ matrix.pg_version }}
+          path: /root/rpmbuild/RPMS/x86_64/pg_table_guard_${{ matrix.pg_version }}-*.x86_64.rpm
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all RPM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: rpms/
+          merge-multiple: true
+
+      - name: Create Release and upload RPMs
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## pg_table_guard ${{ github.ref_name }}
+
+            PostgreSQL extension that prevents DROP TABLE, TRUNCATE, and DELETE without WHERE.
+
+            ### Installation
+
+            **AlmaLinux 8 / RHEL 8 — PostgreSQL 17:**
+            ```bash
+            sudo dnf install https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/pg_table_guard_17-${{ github.ref_name }}-1.el8.x86_64.rpm
+            ```
+
+            Then add to `postgresql.conf`:
+            ```ini
+            shared_preload_libraries = 'table_guard'
+            ```
+            Restart PostgreSQL and optionally run `CREATE EXTENSION table_guard;` in your databases.
+
+            ### Scope configuration
+            ```sql
+            -- Protect only databases where extension is installed:
+            ALTER DATABASE mydb SET table_guard.scope = 'database';
+
+            -- Protect specific tables only:
+            ALTER DATABASE mydb SET table_guard.scope = 'table';
+            ALTER DATABASE mydb SET table_guard.protected_tables = 'mydb.public.orders, mydb.audit.*';
+
+            SELECT pg_reload_conf();
+            ```
+          files: rpms/*.rpm
+          draft: false
+          prerelease: false

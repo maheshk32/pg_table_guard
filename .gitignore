@@ -1,0 +1,18 @@
+BUILD_GUIDE.md
+
+# C build artifacts
+*.o
+*.so
+*.bc
+*.index.bc
+
+# RPM build artifacts
+*.rpm
+*.tar.gz
+
+# Editor and OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
