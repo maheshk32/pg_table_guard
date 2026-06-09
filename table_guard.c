@@ -421,6 +421,43 @@ guard_ProcessUtility(PlannedStmt *pstmt,
             }
         }
 
+        /* ----- Block DROP SCHEMA ----- */
+        if (IsA(parsetree, DropStmt))
+        {
+            DropStmt *stmt = (DropStmt *) parsetree;
+
+            if (stmt->removeType == OBJECT_SCHEMA)
+            {
+                ListCell *cell;
+                foreach(cell, stmt->objects)
+                {
+                    /*
+                     * For OBJECT_SCHEMA, each element in objects is a plain
+                     * string Value node containing the schema name.
+                     */
+                    char *schemaname = strVal(lfirst(cell));
+
+                    ereport(ERROR,
+                            (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+                             errmsg("table_guard: DROP SCHEMA is disabled on \"%s\"",
+                                    schemaname),
+                             errhint("Contact your DBA to remove this restriction.")));
+                }
+            }
+        }
+
+        /* ----- Block DROP DATABASE ----- */
+        if (IsA(parsetree, DropdbStmt))
+        {
+            DropdbStmt *stmt = (DropdbStmt *) parsetree;
+
+            ereport(ERROR,
+                    (errcode(ERRCODE_INSUFFICIENT_PRIVILEGE),
+                     errmsg("table_guard: DROP DATABASE is disabled on \"%s\"",
+                            stmt->dbname),
+                     errhint("Contact your DBA to remove this restriction.")));
+        }
+
         /* ----- Block TRUNCATE ----- */
         if (IsA(parsetree, TruncateStmt))
         {
