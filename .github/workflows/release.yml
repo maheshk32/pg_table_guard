@@ -13,7 +13,7 @@ jobs:
     name: Build RPM (PG ${{ matrix.pg_version }})
     runs-on: ubuntu-latest
     container:
-      image: almalinux:8
+      image: ghcr.io/almalinux/almalinux:8
 
     strategy:
       fail-fast: false
