@@ -3,6 +3,8 @@
 A PostgreSQL extension that prevents accidental data loss by blocking:
 
 - `DROP TABLE`
+- `DROP SCHEMA`
+- `DROP DATABASE`
 - `TRUNCATE`
 - `DELETE` without a `WHERE` clause
 
@@ -32,20 +34,20 @@ Pick the command for your PostgreSQL version:
 Replace `{PG_VERSION}` with your PostgreSQL major version (14, 15, 16, 17, or 18):
 
 ```bash
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_{PG_VERSION}-1.1-1.el8.x86_64.rpm
+sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_{PG_VERSION}-1.2-1.el8.x86_64.rpm
 ```
 
 Examples:
 
 ```bash
 # PostgreSQL 14
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_14-1.1-1.el8.x86_64.rpm
+sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_14-1.2-1.el8.x86_64.rpm
 
 # PostgreSQL 17
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_17-1.1-1.el8.x86_64.rpm
+sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_17-1.2-1.el8.x86_64.rpm
 
 # PostgreSQL 18
-sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_18-1.1-1.el8.x86_64.rpm
+sudo dnf install https://github.com/maheshk32/pg_table_guard/releases/latest/download/pg_table_guard_18-1.2-1.el8.x86_64.rpm
 ```
 
 ### 2. Enable the extension
@@ -85,9 +87,11 @@ Controls which operations are protected.
 
 | Value      | Behaviour |
 |------------|-----------|
-| `global`   | **(Default)** Block DROP/TRUNCATE/DELETE on all tables in all databases |
+| `global`   | **(Default)** Block all protected operations on all tables in all databases |
 | `database` | Block only in databases where `CREATE EXTENSION table_guard` has been run |
 | `table`    | Block only the tables listed in `table_guard.protected_tables` |
+
+> **Note:** `DROP DATABASE` and `DROP SCHEMA` are always blocked regardless of scope when protection is active, since they operate at a level above individual tables.
 
 ### `table_guard.protected_tables`
 
@@ -145,15 +149,27 @@ SELECT pg_reload_conf();
 ## Verify it works
 
 ```sql
--- This should be blocked:
+-- Blocked: drop a table
 DROP TABLE orders;
--- ERROR: table_guard: DROP TABLE is not allowed
+-- ERROR:  table_guard: DROP TABLE is disabled on "orders"
 
--- This should be blocked:
+-- Blocked: drop a schema
+DROP SCHEMA public;
+-- ERROR:  table_guard: DROP SCHEMA is disabled on "public"
+
+-- Blocked: drop a database
+DROP DATABASE mydb;
+-- ERROR:  table_guard: DROP DATABASE is disabled on "mydb"
+
+-- Blocked: truncate a table
+TRUNCATE orders;
+-- ERROR:  table_guard: TRUNCATE is disabled on "orders"
+
+-- Blocked: delete with no WHERE
 DELETE FROM orders;
--- ERROR: table_guard: DELETE without WHERE clause is not allowed
+-- ERROR:  table_guard: DELETE without WHERE clause is disabled
 
--- This is allowed:
+-- Allowed: targeted delete
 DELETE FROM orders WHERE id = 42;
 ```
 
@@ -187,3 +203,21 @@ Then remove `table_guard` from `shared_preload_libraries` in `postgresql.conf` a
 ## Building from source
 
 See [build_rpm.sh](build_rpm.sh) for local RPM builds, or push a `v*` tag to trigger the GitHub Actions release workflow.
+
+---
+
+## Changelog
+
+### v1.2
+- Added `DROP SCHEMA` protection — blocking schema-level drops that would wipe all contained tables
+- Added `DROP DATABASE` protection — intercepted via `DropdbStmt` in the `ProcessUtility` hook
+- Fixed CI: switched container image from `docker.io/almalinux:8` to `ghcr.io/almalinux/almalinux:8` to avoid Docker Hub rate limits on GitHub Actions runners
+
+### v1.1
+- Added PostgreSQL 18 support (`ExecutorRun` hook signature change — removed `execute_once` param)
+- CI matrix expanded to PG 14–18
+
+### v1.0
+- Initial release
+- `DROP TABLE`, `TRUNCATE`, `DELETE` without `WHERE` protection
+- GUC-based scope config: `global`, `database`, `table`
